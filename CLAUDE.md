@@ -11,7 +11,7 @@ Cliente mobile do **Universe Sigma** (gerenciador do Universe mode do WWE 2K). C
 - `*.env` do backend têm segredos: nunca versionar nem imprimir.
 
 ## Comandos
-- `flutter analyze` e `flutter test` (devem ficar limpos/verdes: hoje 124 testes + 1 ignorado).
+- `flutter analyze` e `flutter test` (devem ficar limpos/verdes: hoje 130 testes + 1 ignorado).
 - `flutter run --dart-define=API_BASE=https://SUA-API/api --dart-define=APP_ENV=homolog` (padrão: `http://10.0.2.2:3000/api`, `APP_ENV=dev`).
 - Teste contra API real (cria usuário descartável `live.<ts>@example.com` com universe padrão):
   1. subir o backend: `cd ../universe_sigma_backend && NODE_ENV=test PORT=3100 JWT_SECRET=x node app.js` (usa o banco de teste do `test.env`);
@@ -35,6 +35,7 @@ Cliente mobile do **Universe Sigma** (gerenciador do Universe mode do WWE 2K). C
 - Imagens: a API manda URL assinada (expira em 1h); cache usa a URL sem query string (`NetImage`). Ao salvar, enviar a chave `storage:...` do upload; na edição só reenviar `imageUrl` se mudou (já no `buildBody`).
 - Status do episódio: `UNPLANNED` (vermelho) → `PLANNED` (amarelo) → `DONE` (verde). O backend sincroniza sozinho: com segmentos vira PLANNED, sem nenhum volta a UNPLANNED, DONE nunca é mexido. Reabrir DONE: `reopenedStatus(n)`.
 
+- IA (Gemini, via backend): `features/episodes/ai_plan_page.dart` (rotas `/episodes/:id/ai` = um card, `/episodes/ai-plan?seasonId=` = período por temporada + mês/semana do jogo, job com progresso) e `core/ai_plan_logic.dart` (espelha `core/ai-plan.ts` do web). Prévia revisável; grava por `POST episodes/:id/segments` ou `POST episodes/segments/bulk`. `api.post(..., receiveTimeout:)` para chamadas longas.
 - Rivalidades: `core/rivalry_logic.dart` (lados, ganhador, rótulo) e `SegmentDraft` (`startsRivalry`/`endsRivalry`/`rivalryId`); o formulário de segmento busca `rivalries/match` (debounce) ao mudar os lutadores. Recurso no grupo "Shows".
 
 ## Armadilhas do Flutter 3.50 / pacotes
