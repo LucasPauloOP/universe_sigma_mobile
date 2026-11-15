@@ -76,7 +76,7 @@ class _DivisionRankingSheetState extends ConsumerState<DivisionRankingSheet> {
                         margin: const EdgeInsets.only(top: 3),
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                         decoration: BoxDecoration(
-                          color: e['wrestlerId'] != null && widget.scheduledIds.contains(e['wrestlerId'])
+                          color: isEntryScheduled(e, widget.scheduledIds)
                               ? scheme.primaryContainer
                               : scheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(8),
