@@ -6,7 +6,8 @@ Cliente mobile do **Universe Sigma** (gerenciador do Universe mode do WWE 2K). C
 
 ## Ambiente
 - Flutter 3.50 / Dart 3.14 em `~/flutter`, **fora do PATH**: `export PATH="$HOME/flutter/bin:$PATH"`.
-- Máquina é WSL **sem Android SDK nem Chrome**: não dá para rodar emulador nem `flutter build apk`. Validação = `flutter analyze` + `flutter test` + teste ao vivo. iOS só em macOS.
+- Máquina é WSL sem sudo e sem Chrome/emulador. JDK 17 em `~/jdk17` e Android SDK em `~/android-sdk` (instalados em espaço de usuário). Antes de buildar: `export JAVA_HOME=$HOME/jdk17 ANDROID_HOME=$HOME/android-sdk PATH="$HOME/jdk17/bin:$HOME/flutter/bin:$PATH"`.
+- APK: `flutter build apk --release --dart-define=API_BASE=https://SUA-API/api --dart-define=APP_ENV=prod` → `build/app/outputs/flutter-apk/app-release.apk` (~60 MB, 1º build ~7 min). O lint de release está desligado em `android/app/build.gradle.kts` (bug interno do AGP). O APK sai assinado com a chave **debug** (serve para instalar/testar, não para loja). iOS só em macOS.
 - `*.env` do backend têm segredos: nunca versionar nem imprimir.
 
 ## Comandos
@@ -45,7 +46,7 @@ Cliente mobile do **Universe Sigma** (gerenciador do Universe mode do WWE 2K). C
 - Listas: `{data,total,limit,offset}` (limite máx. 500; `api.all` pagina). Erros: `{message, details[]}`.
 
 ## Pendências / ideias
-- Sem ícone/splash próprios; app nunca foi buildado como APK nem rodado em emulador/aparelho.
-- URL pública da API ainda não configurada (passar por `--dart-define`).
+- Sem ícone/splash próprios; APK já compila, mas nunca foi rodado em emulador/aparelho. Falta keystore de release (assinatura para loja).
+- URL da API: a do web (homologação) `https://universe-sigma-backend.onrender.com/api`; produção do web ainda vazia (passar por `--dart-define=API_BASE`).
 - Usuários de teste do teste ao vivo podem ter sobrado no banco de teste (limpeza foi negada pelo classificador de permissões).
 - Nada commitado ainda (o usuário faz commit/push).

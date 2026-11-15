@@ -10,6 +10,7 @@ import '../../core/segment_result.dart';
 import '../../core/theme.dart';
 import '../../resources/resource_def.dart';
 import '../../resources/resources.dart';
+import '../divisions/ranking_sheet.dart';
 import '../../shared/app_scaffold.dart';
 import '../../shared/ui.dart';
 
@@ -120,6 +121,19 @@ class _EpisodeCardPageState extends ConsumerState<EpisodeCardPage> {
       subtitle: card.value == null ? null : _subtitle(card.value!),
       showBack: true,
       actions: [
+        if (card.value != null)
+          IconButton(
+            tooltip: 'Ranking das divisões',
+            icon: const Icon(Icons.leaderboard),
+            onPressed: () => DivisionRankingSheet.show(
+              context,
+              brandId: card.value!.obj('show')?['brandId'] as String?,
+              scheduledIds: {
+                for (final s in card.value!.list('segments'))
+                  for (final p in s.list('participants')) p['wrestlerId'] as String,
+              },
+            ),
+          ),
         if (card.value != null)
           IconButton(
             tooltip: labelOfOption(episodeStatus, card.value!['status']),
