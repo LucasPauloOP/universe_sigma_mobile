@@ -9,6 +9,7 @@ import '../../core/segment_logic.dart';
 import '../../resources/resources.dart';
 import '../../shared/app_scaffold.dart';
 import '../../shared/ui.dart';
+import '../divisions/ranking_sheet.dart';
 import '../resources/field_widgets.dart';
 import 'episode_card_page.dart';
 
@@ -75,6 +76,17 @@ class _SegmentFormPageState extends ConsumerState<SegmentFormPage> {
       list.insert(0, Choice(cur.id, '${cur.obj('tournament')?['name']} (atual)'));
     }
     return list;
+  }
+
+  /// Abre o ranking das divisões (na marca do show do episódio) para apoiar o planejamento.
+  Future<void> _showRanking() async {
+    String? brandId;
+    try {
+      final card = await ref.read(episodeCardProvider(widget.episodeId).future);
+      brandId = card.obj('show')?['brandId'] as String?;
+    } catch (_) {}
+    if (!mounted) return;
+    await DivisionRankingSheet.show(context, brandId: brandId, scheduledIds: {for (final p in _d!.participants) p.wrestlerId});
   }
 
   Future<void> _save() async {
@@ -197,6 +209,10 @@ class _SegmentFormPageState extends ConsumerState<SegmentFormPage> {
           ],
         ],
         const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton.icon(onPressed: _showRanking, icon: const Icon(Icons.leaderboard), label: const Text('Ver ranking das divisões')),
+        ),
         if (d.isMatch && d.hasTitle)
           SwitchListTile(
             contentPadding: EdgeInsets.zero,

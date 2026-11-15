@@ -247,6 +247,49 @@ void main() {
       await tester.pumpAndSettle();
       expect(server.calls, contains('POST /universes/u1/tournaments/tn1/generate-bracket'));
     });
+    testWidgets('card do episódio: ícone da barra abre o ranking das divisões', (tester) async {
+      final board = [
+        {
+          'id': 'd1', 'name': 'Main Card Masculino', 'gender': 'M', 'isActive': true, 'championSince': null,
+          'title': {'name': 'World Heavyweight', 'isTag': false},
+          'brands': [{'brandId': 'b1', 'brand': {'name': 'RAW'}}],
+          'champions': [], 'entries': [{'id': 'en1', 'wrestlerId': 'w1', 'wrestler': {'name': 'John Cena'}}],
+        },
+      ];
+      await _open(tester, _server(extra: {'GET /universes/u1/card-divisions/board': (o) => (200, board)}), '/episodes/e1/card');
+      await tester.tap(find.byIcon(Icons.leaderboard));
+      await tester.pumpAndSettle();
+      expect(find.text('Ranking das divisões'), findsOneWidget);
+      expect(find.text('World Heavyweight: Vago'), findsOneWidget);
+    });
+
+    testWidgets('formulário de segmento: botão abre o ranking das divisões da marca do show', (tester) async {
+      final board = [
+        {
+          'id': 'd1', 'name': 'Main Card Masculino', 'gender': 'M', 'isActive': true, 'championSince': null,
+          'title': {'name': 'World Heavyweight', 'isTag': false},
+          'brands': [{'brandId': 'b1', 'brand': {'name': 'RAW'}}],
+          'champions': [{'wrestlerId': 'w9', 'name': 'Drew McIntyre'}],
+          'entries': [
+            {'id': 'en1', 'wrestlerId': 'w9', 'wrestler': {'name': 'Drew McIntyre'}},
+            {'id': 'en2', 'wrestlerId': 'w2', 'wrestler': {'name': 'Kevin Owens'}},
+          ],
+        },
+      ];
+      final server = _server(extra: {'GET /universes/u1/card-divisions/board': (o) => (200, board)});
+      await _open(tester, server, '/episodes/e1/card');
+      await tester.tap(find.byType(Checkbox).first);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Ver ranking das divisões'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Ranking das divisões'), findsOneWidget);
+      expect(find.text('Main Card Masculino'), findsOneWidget);
+      expect(find.text('World Heavyweight: Drew McIntyre'), findsOneWidget);
+      expect(find.text('Kevin Owens'), findsOneWidget);
+      expect(server.calls, contains('GET /universes/u1/card-divisions/board'));
+    });
   });
 
   group('divisões e estatísticas', () {
