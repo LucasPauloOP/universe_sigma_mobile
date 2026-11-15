@@ -29,7 +29,8 @@ class _EpisodesPageState extends ConsumerState<EpisodesPage> {
   String? _showId;
   bool _weekly = true;
   _View _view = _View.cards;
-  int? _calMonth;
+  /// null = automático (mês do último realizado); 0 = todos os meses.
+  int? _monthSel;
   bool _showEarlier = false;
 
   Future<void> _refresh() async {
@@ -165,6 +166,11 @@ class _EpisodesPageState extends ConsumerState<EpisodesPage> {
               if (isWeekly(e) == _weekly) e['showId'] as String: e.obj('show')?['name'] as String? ?? '',
           };
 
+          final groups = groupByMonth(base, weekly: _weekly, showId: _showId);
+          final months = [for (final g in groups) g.month];
+          final autoMonth = defaultMonth(months, lastDoneMonth(ofSeason));
+          final month = _monthSel == 0 ? null : (months.contains(_monthSel) ? _monthSel : autoMonth);
+
           return Column(children: [
             _Toolbar(
               seasons: seasons,
@@ -172,7 +178,7 @@ class _EpisodesPageState extends ConsumerState<EpisodesPage> {
               onSeason: (id) => setState(() {
                 _seasonId = id;
                 _showId = null;
-                _calMonth = null;
+                _monthSel = null;
               }),
               view: _view,
               onView: (v) => setState(() => _view = v),
@@ -186,6 +192,9 @@ class _EpisodesPageState extends ConsumerState<EpisodesPage> {
               showChoices: showChoices,
               showId: _showId,
               onShow: (id) => setState(() => _showId = id),
+              months: months,
+              month: month,
+              onMonthSel: (m) => setState(() => _monthSel = m ?? 0),
             ),
             if (startMonth != 5 || earlier > 0)
               Padding(
@@ -210,7 +219,7 @@ class _EpisodesPageState extends ConsumerState<EpisodesPage> {
                 onRefresh: _refresh,
                 child: _view == _View.cards
                     ? _CardsView(
-                        groups: groupByMonth(base, weekly: _weekly, showId: _showId),
+                        groups: month == null ? groups : groups.where((g) => g.month == month).toList(),
                         nextId: next,
                         startMonth: startMonth,
                         onOpen: (e) => context.push('/episodes/${e.id}/card'),
@@ -218,8 +227,8 @@ class _EpisodesPageState extends ConsumerState<EpisodesPage> {
                       )
                     : _CalendarView(
                         episodes: base,
-                        month: _calMonth,
-                        onMonth: (m) => setState(() => _calMonth = m),
+                        month: month,
+                        onMonth: (m) => setState(() => _monthSel = m),
                         nextId: next,
                         onOpen: (e) => context.push('/episodes/${e.id}/card'),
                         onMenu: _menu,
@@ -247,6 +256,9 @@ class _Toolbar extends StatelessWidget {
     required this.showChoices,
     required this.showId,
     required this.onShow,
+    required this.months,
+    required this.month,
+    required this.onMonthSel,
   });
 
   final List<Entity> seasons;
@@ -261,6 +273,9 @@ class _Toolbar extends StatelessWidget {
   final Map<String, String> showChoices;
   final String? showId;
   final ValueChanged<String?> onShow;
+  final List<int> months;
+  final int? month;
+  final ValueChanged<int?> onMonthSel;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -305,6 +320,21 @@ class _Toolbar extends StatelessWidget {
                 for (final e in showChoices.entries) ...[
                   const SizedBox(width: 8),
                   FilterChip(label: Text(e.value), selected: showId == e.key, onSelected: (_) => onShow(showId == e.key ? null : e.key)),
+                ],
+              ]),
+            ),
+          if (months.isNotEmpty)
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(children: [
+                if (view == _View.cards) ...[
+                  ChoiceChip(label: const Text('Todos os meses'), selected: month == null, onSelected: (_) => onMonthSel(null)),
+                  const SizedBox(width: 8),
+                ],
+                for (final m in months) ...[
+                  ChoiceChip(label: Text(monthName(m)), selected: month == m, onSelected: (_) => onMonthSel(m)),
+                  const SizedBox(width: 8),
                 ],
               ]),
             ),
@@ -372,50 +402,76 @@ class _EpisodeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final status = e['status'] as String?;
     final color = statusColor(status);
-    final done = status == 'DONE';
     final title = e['title'] as String?;
     final show = e.obj('show')?['name'] as String? ?? 'Episódio';
     final segments = (e.obj('_count')?['segments'] as num?)?.toInt() ?? 0;
+    final scheme = Theme.of(context).colorScheme;
+    final onColor = ThemeData.estimateBrightnessForColor(color) == Brightness.dark ? Colors.white : Colors.black87;
     return Opacity(
-      opacity: done || before ? 0.75 : 1,
+      opacity: before ? 0.6 : 1,
       child: Card(
         clipBehavior: Clip.antiAlias,
+        elevation: isNext ? 4 : 0,
+        shadowColor: scheme.primary,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: isNext ? Theme.of(context).colorScheme.primary : color, width: isNext ? 3 : 2),
+          side: BorderSide(color: color, width: 2.5),
         ),
         child: InkWell(
           onTap: onTap,
           onLongPress: onMenu,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
-            child: Row(children: [
-              NetImage(e['imageUrl'] as String? ?? e.obj('show')?['imageUrl'] as String?, size: 44, fallback: Icons.tv),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(show, style: const TextStyle(fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis),
-                  Text('${episodeWhen(e)} · ${gameDayName(EpisodeLike.fromEntity(e))}', style: Theme.of(context).textTheme.bodySmall),
-                  if (title != null && title.isNotEmpty && title != show)
-                    Text(title, overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 4),
-                  Wrap(spacing: 6, runSpacing: 2, crossAxisAlignment: WrapCrossAlignment.center, children: [
-                    if (isNext) const Chip(label: Text('Próximo'), avatar: Icon(Icons.play_arrow, size: 16), visualDensity: VisualDensity.compact),
-                    Chip(
-                      label: Text(labelOfOption(episodeStatus, status)),
-                      visualDensity: VisualDensity.compact,
-                      side: BorderSide(color: color),
-                      backgroundColor: color.withValues(alpha: 0.15),
-                    ),
-                    Row(mainAxisSize: MainAxisSize.min, children: [
-                      const Icon(Icons.list, size: 16),
-                      const SizedBox(width: 2),
-                      Text('$segments'),
-                    ]),
-                  ]),
-                ]),
+          child: IntrinsicHeight(
+            child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              // faixa lateral com o ícone do status
+              Container(
+                width: 36,
+                color: color,
+                child: Icon(statusIcon(status), size: 20, color: onColor),
               ),
-              IconButton(icon: const Icon(Icons.more_vert), onPressed: onMenu, tooltip: 'Ações'),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
+                  child: Row(children: [
+                    NetImage(e['imageUrl'] as String? ?? e.obj('show')?['imageUrl'] as String?, size: 44, fallback: Icons.tv),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(show, style: const TextStyle(fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis),
+                        Text('${episodeWhen(e)} · ${gameDayName(EpisodeLike.fromEntity(e))}', style: Theme.of(context).textTheme.bodySmall),
+                        if (title != null && title.isNotEmpty && title != show) Text(title, overflow: TextOverflow.ellipsis),
+                        const SizedBox(height: 6),
+                        Wrap(spacing: 6, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(12)),
+                            child: Row(mainAxisSize: MainAxisSize.min, children: [
+                              Icon(statusIcon(status), size: 14, color: onColor),
+                              const SizedBox(width: 4),
+                              Text(labelOfOption(episodeStatus, status),
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: onColor)),
+                            ]),
+                          ),
+                          if (isNext)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(border: Border.all(color: scheme.primary), borderRadius: BorderRadius.circular(12)),
+                              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                Icon(Icons.play_arrow, size: 14, color: scheme.primary),
+                                Text('Próximo', style: TextStyle(fontSize: 12, color: scheme.primary)),
+                              ]),
+                            ),
+                          Row(mainAxisSize: MainAxisSize.min, children: [
+                            const Icon(Icons.list, size: 16),
+                            const SizedBox(width: 2),
+                            Text('$segments'),
+                          ]),
+                        ]),
+                      ]),
+                    ),
+                    IconButton(icon: const Icon(Icons.more_vert), onPressed: onMenu, tooltip: 'Ações'),
+                  ]),
+                ),
+              ),
             ]),
           ),
         ),

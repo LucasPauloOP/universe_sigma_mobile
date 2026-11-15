@@ -110,4 +110,31 @@ void main() {
       expect(episodeWhen(ep('x', 'RAW', 'WEEKLY', 8, 2)), 'Agosto · semana 2');
     });
   });
+
+  group('mês padrão da lista', () {
+    final list = [
+      ep('a', 'RAW', 'WEEKLY', 5, 1, weekday: 1, status: 'DONE'),
+      ep('b', 'RAW', 'WEEKLY', 6, 1, weekday: 1, status: 'DONE'),
+      ep('c', 'RAW', 'WEEKLY', 6, 2, weekday: 1, status: 'PLANNED'),
+      ep('d', 'RAW', 'WEEKLY', 7, 1, weekday: 1, status: 'UNPLANNED'),
+    ];
+    test('lastDoneMonth: mês do último realizado na ordem de jogo', () {
+      expect(lastDoneMonth(episodesOfSeason(list, 's1')), 6);
+    });
+    test('sem realizado, usa o mês do primeiro episódio', () {
+      expect(lastDoneMonth([ep('x', 'RAW', 'WEEKLY', 8, 1, weekday: 1)]), 8);
+      expect(lastDoneMonth([]), isNull);
+    });
+    test('defaultMonth: o do último realizado, ou o mais próximo antes dele', () {
+      expect(defaultMonth([5, 6, 7], 6), 6);
+      expect(defaultMonth([5, 7], 6), 5); // mês 6 não existe na aba (ex.: PLEs)
+      expect(defaultMonth([7, 8], 5), 7); // nada antes: primeiro
+      expect(defaultMonth([], 6), isNull);
+      expect(defaultMonth([5, 6], null), 5);
+    });
+    test('virada de ano: janeiro vem depois de dezembro na temporada', () {
+      expect(defaultMonth([11, 12, 1], 12), 12);
+      expect(defaultMonth([12, 1], 3), 1);
+    });
+  });
 }

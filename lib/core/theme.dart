@@ -41,3 +41,11 @@ const statusColors = {
   'UNPLANNED': Color(0xFFEF4444),
 };
 Color statusColor(String? s) => statusColors[s] ?? const Color(0xFF94A3B8);
+
+/// Ícone do status do episódio: realizado ✓, planejado relógio, sem planejamento alerta.
+IconData statusIcon(String? s) => switch (s) {
+      'DONE' => Icons.check_circle,
+      'PLANNED' => Icons.schedule,
+      'UNPLANNED' => Icons.event_busy,
+      _ => Icons.help_outline,
+    };

@@ -88,7 +88,7 @@ void main() {
   group('episódios', () {
     testWidgets('lista por mês com status, "Próximo" e contagem de realizados', (tester) async {
       await _open(tester, _server(), '/episodes');
-      expect(find.text('Agosto'), findsOneWidget);
+      expect(find.text('Agosto'), findsNWidgets(2)); // chip do mês + título do grupo
       expect(find.text('1/3 realizados'), findsOneWidget); // e3 está DONE
       expect(find.text('Próximo'), findsOneWidget); // o primeiro PLANNED
       expect(find.text('Sem planejamento'), findsOneWidget);
@@ -96,11 +96,26 @@ void main() {
       expect(find.text('Realizado'), findsWidgets);
     });
 
+    testWidgets('abre no mês do último episódio realizado; "Todos os meses" mostra tudo', (tester) async {
+      final server = _server(extra: {
+        'GET /universes/u1/episodes': (o) => (200, page([
+              _ep('e4', _raw, 6, 1, 'DONE', segments: 1),
+              _ep('e5', _raw, 9, 1, 'PLANNED', segments: 1),
+            ])),
+      });
+      await _open(tester, server, '/episodes');
+      expect(find.text('1/1 realizados'), findsOneWidget); // Junho (último realizado)
+      expect(find.text('0/1 realizados'), findsNothing); // Setembro oculto
+      await tester.tap(find.text('Todos os meses'));
+      await tester.pumpAndSettle();
+      expect(find.text('0/1 realizados'), findsOneWidget);
+    });
+
     testWidgets('troca para o calendário e mostra os chips no dia do show', (tester) async {
       await _open(tester, _server(), '/episodes');
       await tester.tap(find.byIcon(Icons.calendar_month).last);
       await tester.pumpAndSettle();
-      expect(find.text('Agosto'), findsOneWidget);
+      expect(find.text('Agosto'), findsNWidgets(2)); // chip do mês + título do calendário
       expect(find.text('Seg'), findsOneWidget);
       expect(find.text('Sex'), findsOneWidget);
       expect(find.text('RAW'), findsNWidgets(3)); // chip do filtro + semana 1 + semana 2

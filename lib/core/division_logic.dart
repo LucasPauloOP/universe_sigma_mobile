@@ -71,3 +71,16 @@ Map<String, Object?> championBody(String mode, {String? teamId, List<String> wre
       'mode': mode,
       'holders': teamId != null ? [{'teamId': teamId}] : [for (final id in wrestlerIds) {'wrestlerId': id}],
     };
+
+/// Entrada escalada: lutador na lista; dupla quando todos os integrantes estão
+/// (facção: basta um).
+bool isEntryScheduled(Entity entry, Set<String> scheduledWrestlerIds) {
+  final wid = entry['wrestlerId'] as String?;
+  if (wid != null) return scheduledWrestlerIds.contains(wid);
+  final team = entry.obj('team');
+  final members = [for (final m in (team?['members'] as List? ?? const [])) (m as Map)['wrestlerId'] as String];
+  if (members.isEmpty) return false;
+  return team?['kind'] == 'FACTION'
+      ? members.any(scheduledWrestlerIds.contains)
+      : members.every(scheduledWrestlerIds.contains);
+}
