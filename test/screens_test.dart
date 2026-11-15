@@ -79,16 +79,19 @@ Future<ProviderContainer> _open(WidgetTester tester, FakeServer server, String l
 }
 
 /// Rola o formulário (a tela de cima da pilha) até o fim: a lista só constrói o que aparece.
-Future<void> _scrollForm(WidgetTester tester, [double dy = -1500]) async {
-  await tester.drag(find.byType(ListView).last, Offset(0, dy));
-  await tester.pumpAndSettle();
+Future<void> _scrollForm(WidgetTester tester, [double dy = -3000]) async {
+  // lista preguiçosa: a altura só se completa conforme os itens são construídos, então rolagens grandes (até o fim/topo) repetem
+  for (var i = 0; i < (dy.abs() >= 1500 ? 2 : 1); i++) {
+    await tester.drag(find.byType(ListView).last, Offset(0, dy));
+    await tester.pumpAndSettle();
+  }
 }
 
 void main() {
   group('episódios', () {
     testWidgets('lista por mês com status, "Próximo" e contagem de realizados', (tester) async {
       await _open(tester, _server(), '/episodes');
-      expect(find.text('Agosto'), findsOneWidget);
+      expect(find.text('Agosto'), findsNWidgets(2)); // chip do mês + título do grupo
       expect(find.text('1/3 realizados'), findsOneWidget); // e3 está DONE
       expect(find.text('Próximo'), findsOneWidget); // o primeiro PLANNED
       expect(find.text('Sem planejamento'), findsOneWidget);
@@ -96,11 +99,26 @@ void main() {
       expect(find.text('Realizado'), findsWidgets);
     });
 
+    testWidgets('abre no mês do último episódio realizado; "Todos os meses" mostra tudo', (tester) async {
+      final server = _server(extra: {
+        'GET /universes/u1/episodes': (o) => (200, page([
+              _ep('e4', _raw, 6, 1, 'DONE', segments: 1),
+              _ep('e5', _raw, 9, 1, 'PLANNED', segments: 1),
+            ])),
+      });
+      await _open(tester, server, '/episodes');
+      expect(find.text('1/1 realizados'), findsOneWidget); // Junho (último realizado)
+      expect(find.text('0/1 realizados'), findsNothing); // Setembro oculto
+      await tester.tap(find.text('Todos os meses'));
+      await tester.pumpAndSettle();
+      expect(find.text('0/1 realizados'), findsOneWidget);
+    });
+
     testWidgets('troca para o calendário e mostra os chips no dia do show', (tester) async {
       await _open(tester, _server(), '/episodes');
       await tester.tap(find.byIcon(Icons.calendar_month).last);
       await tester.pumpAndSettle();
-      expect(find.text('Agosto'), findsOneWidget);
+      expect(find.text('Agosto'), findsNWidgets(2)); // chip do mês + título do calendário
       expect(find.text('Seg'), findsOneWidget);
       expect(find.text('Sex'), findsOneWidget);
       expect(find.text('RAW'), findsNWidgets(3)); // chip do filtro + semana 1 + semana 2
@@ -192,6 +210,39 @@ void main() {
       expect((body['participants'] as List).last['isWinner'], isFalse);
     });
 
+    testWidgets('formulário de segmento: luta reconhece rivalidade e envia o encerramento', (tester) async {
+      final server = _server(extra: {
+        'GET /universes/u1/rivalries/match': (o) => (200, [
+              {'id': 'rv1', 'name': 'John Cena vs CM Punk', 'isActive': true, 'members': [], 'segments': []},
+            ]),
+        'PUT /universes/u1/segments/sg1': (o) => (200, {'id': 'sg1'}),
+      });
+      await _open(tester, server, '/episodes/e1/card');
+      await tester.tap(find.byType(Checkbox).first); // luta sem resultado: abre o formulário
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 400)); // espera a busca (debounce)
+      await tester.pumpAndSettle();
+      expect(server.calls, contains('GET /universes/u1/rivalries/match'));
+
+      await tester.drag(find.byType(ListView).last, const Offset(0, -500));
+      await tester.pumpAndSettle();
+      expect(find.text('Esta luta começa uma rivalidade'), findsOneWidget);
+      await tester.tap(find.text('Encerrar rivalidade nesta luta'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Qual rivalidade?'), findsWidgets);
+
+      // com uma só rivalidade reconhecida ela já vem escolhida: salvar envia o encerramento
+      await _scrollForm(tester, 3000);
+      await tester.tap(find.text('Realizado')); // a luta fica só planejada (sem exigir resultado)
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Salvar').first);
+      await tester.pumpAndSettle();
+      final body = server.bodies['PUT /universes/u1/segments/sg1'] as Map;
+      expect(body['endsRivalry'], isTrue);
+      expect(body['rivalryId'], 'rv1');
+      expect(body['startsRivalry'], isFalse);
+    });
+
     testWidgets('card vazio oferece adicionar o primeiro segmento', (tester) async {
       final empty = {..._card(), 'segments': []};
       await _open(tester, _server(extra: {'GET /universes/u1/episodes/e1/card': (o) => (200, empty)}), '/episodes/e1/card');
@@ -246,6 +297,52 @@ void main() {
       await tester.tap(find.text('Gerar'));
       await tester.pumpAndSettle();
       expect(server.calls, contains('POST /universes/u1/tournaments/tn1/generate-bracket'));
+    });
+    testWidgets('card do episódio: ícone da barra abre o ranking das divisões', (tester) async {
+      final board = [
+        {
+          'id': 'd1', 'name': 'Main Card Masculino', 'gender': 'M', 'isActive': true, 'championSince': null,
+          'title': {'name': 'World Heavyweight', 'isTag': false},
+          'brands': [{'brandId': 'b1', 'brand': {'name': 'RAW'}}],
+          'champions': [], 'entries': [{'id': 'en1', 'wrestlerId': 'w1', 'wrestler': {'name': 'John Cena'}}],
+        },
+      ];
+      await _open(tester, _server(extra: {'GET /universes/u1/card-divisions/board': (o) => (200, board)}), '/episodes/e1/card');
+      await tester.tap(find.byIcon(Icons.leaderboard));
+      await tester.pumpAndSettle();
+      expect(find.text('Ranking das divisões'), findsOneWidget);
+      expect(find.text('World Heavyweight'), findsWidgets);
+      expect(find.text('Título vago'), findsOneWidget);
+    });
+
+    testWidgets('formulário de segmento: botão abre o ranking das divisões da marca do show', (tester) async {
+      final board = [
+        {
+          'id': 'd1', 'name': 'Main Card Masculino', 'gender': 'M', 'isActive': true, 'championSince': null,
+          'title': {'name': 'World Heavyweight', 'isTag': false},
+          'brands': [{'brandId': 'b1', 'brand': {'name': 'RAW'}}],
+          'champions': [{'wrestlerId': 'w9', 'name': 'Drew McIntyre'}],
+          'entries': [
+            {'id': 'en1', 'wrestlerId': 'w9', 'wrestler': {'name': 'Drew McIntyre'}},
+            {'id': 'en2', 'wrestlerId': 'w2', 'wrestler': {'name': 'Kevin Owens'}},
+          ],
+        },
+      ];
+      final server = _server(extra: {'GET /universes/u1/card-divisions/board': (o) => (200, board)});
+      await _open(tester, server, '/episodes/e1/card');
+      await tester.tap(find.byType(Checkbox).first);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Ver ranking das divisões'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Ranking das divisões'), findsOneWidget);
+      expect(find.text('Main Card Masculino'), findsOneWidget);
+      expect(find.text('World Heavyweight'), findsWidgets);
+      expect(find.text('Drew McIntyre'), findsWidgets); // campeão em destaque
+      expect(find.text('Campeão'), findsOneWidget);
+      expect(find.text('Kevin Owens'), findsOneWidget);
+      expect(server.calls, contains('GET /universes/u1/card-divisions/board'));
     });
   });
 

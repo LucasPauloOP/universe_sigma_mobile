@@ -5,11 +5,14 @@ import 'package:material_ui/material_ui.dart';
 import '../../core/api/api_exception.dart';
 import '../../core/format.dart';
 import '../../core/models.dart';
+import '../../core/rivalry_logic.dart';
 import '../../core/providers.dart';
 import '../../core/segment_result.dart';
 import '../../core/theme.dart';
 import '../../resources/resource_def.dart';
 import '../../resources/resources.dart';
+import '../divisions/ranking_sheet.dart';
+import 'active_rivalries_sheet.dart';
 import '../../shared/app_scaffold.dart';
 import '../../shared/ui.dart';
 
@@ -63,15 +66,15 @@ class _EpisodeCardPageState extends ConsumerState<EpisodeCardPage> {
   }
 
   String? _problem(Entity s) => resultProblem(
-        type: s['type'] as String?,
-        isDone: true,
-        isDraw: s['isDraw'] == true,
-        finishType: s['finishType'] as String?,
-        participants: [
-          for (final p in s.list('participants'))
-            ParticipantResult(side: (p['side'] as num).toInt(), isWinner: p['isWinner'] == true),
-        ],
-      );
+    type: s['type'] as String?,
+    isDone: true,
+    isDraw: s['isDraw'] == true,
+    finishType: s['finishType'] as String?,
+    participants: [
+      for (final p in s.list('participants'))
+        ParticipantResult(side: (p['side'] as num).toInt(), isWinner: p['isWinner'] == true),
+    ],
+  );
 
   Future<void> _openForm({Entity? segment, bool markDone = false}) async {
     final base = '/episodes/${widget.episodeId}/segments';
@@ -79,6 +82,15 @@ class _EpisodeCardPageState extends ConsumerState<EpisodeCardPage> {
       segment == null ? '$base/new' : '$base/${segment.id}${markDone ? '?markDone=1' : ''}',
     );
     if (saved == true) await _reload();
+  }
+
+  /// Sugestão do card com IA: abre a prévia; ao salvar, recarrega o card.
+  Future<void> _suggest(Entity e) async {
+    final label = (e['title'] as String?)?.isNotEmpty == true ? e['title'] as String : e.obj('show')?['name'] as String? ?? '';
+    final saved = await context.push<int>(
+      Uri(path: '/episodes/${widget.episodeId}/ai', queryParameters: {'label': label}).toString(),
+    );
+    if (saved != null && saved > 0) await _reload();
   }
 
   Future<void> _remove(Entity s) async {
@@ -104,7 +116,14 @@ class _EpisodeCardPageState extends ConsumerState<EpisodeCardPage> {
     segments.insert(newIndex, segments.removeAt(oldIndex));
     setState(() => _local = segments);
     try {
-      await ref.read(apiProvider).put('episodes/${e.id}/segments/order', body: {'order': [for (final s in segments) s.id]});
+      await ref
+          .read(apiProvider)
+          .put(
+            'episodes/${e.id}/segments/order',
+            body: {
+              'order': [for (final s in segments) s.id],
+            },
+          );
     } on ApiException catch (err) {
       if (mounted) showError(context, err);
     } finally {
@@ -116,14 +135,52 @@ class _EpisodeCardPageState extends ConsumerState<EpisodeCardPage> {
   Widget build(BuildContext context) {
     final card = ref.watch(episodeCardProvider(widget.episodeId));
     return AppPage(
-      title: card.value == null ? 'Card' : ((card.value!['title'] as String?)?.isNotEmpty == true ? card.value!['title'] as String : card.value!.obj('show')?['name'] as String? ?? 'Card'),
+      title: card.value == null
+          ? 'Card'
+          : ((card.value!['title'] as String?)?.isNotEmpty == true
+                ? card.value!['title'] as String
+                : card.value!.obj('show')?['name'] as String? ?? 'Card'),
       subtitle: card.value == null ? null : _subtitle(card.value!),
       showBack: true,
       actions: [
         if (card.value != null)
           IconButton(
+            tooltip: 'Gerar com IA',
+            icon: const Icon(Icons.auto_awesome),
+            onPressed: () => _suggest(card.value!),
+          ),
+        if (card.value != null)
+          IconButton(
+            tooltip: 'Ranking das divisões',
+            icon: const Icon(Icons.leaderboard),
+            onPressed: () => DivisionRankingSheet.show(
+              context,
+              brandId: card.value!.obj('show')?['brandId'] as String?,
+              scheduledIds: {
+                for (final s in card.value!.list('segments'))
+                  for (final p in s.list('participants')) p['wrestlerId'] as String,
+              },
+            ),
+          ),
+        if (card.value != null)
+          IconButton(
+            tooltip: 'Rivalidades ativas',
+            icon: const Icon(Icons.bolt),
+            onPressed: () => ActiveRivalriesSheet.show(
+              context,
+              inCardIds: {
+                for (final s in card.value!.list('segments'))
+                  if (s['rivalryId'] != null) s['rivalryId'] as String,
+              },
+            ),
+          ),
+        if (card.value != null)
+          IconButton(
             tooltip: labelOfOption(episodeStatus, card.value!['status']),
-            icon: Icon(card.value!['status'] == 'DONE' ? Icons.check_circle : Icons.schedule, color: statusColor(card.value!['status'] as String?)),
+            icon: Icon(
+              card.value!['status'] == 'DONE' ? Icons.check_circle : Icons.schedule,
+              color: statusColor(card.value!['status'] as String?),
+            ),
             onPressed: () => _toggleStatus(card.value!),
           ),
       ],
@@ -140,15 +197,23 @@ class _EpisodeCardPageState extends ConsumerState<EpisodeCardPage> {
           return RefreshIndicator(
             onRefresh: _reload,
             child: segments.isEmpty
-                ? ListView(children: [
-                    SizedBox(
-                      height: 360,
-                      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        const EmptyState('O card ainda está vazio.', icon: Icons.list),
-                        FilledButton(onPressed: () => _openForm(), child: const Text('Adicionar o primeiro segmento')),
-                      ]),
-                    ),
-                  ])
+                ? ListView(
+                    children: [
+                      SizedBox(
+                        height: 360,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const EmptyState('O card ainda está vazio.', icon: Icons.list),
+                            FilledButton(
+                              onPressed: () => _openForm(),
+                              child: const Text('Adicionar o primeiro segmento'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  )
                 : ReorderableListView.builder(
                     padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
                     itemCount: segments.length,
@@ -169,16 +234,23 @@ class _EpisodeCardPageState extends ConsumerState<EpisodeCardPage> {
   }
 
   String _subtitle(Entity e) => [
-        e.obj('show')?['name'] as String? ?? '',
-        monthName((e['month'] as num?)?.toInt()),
-        if (e['week'] != null) 'Semana ${e['week']}',
-        if (e['night'] != null) 'Noite ${e['night']}',
-        gameDayName(EpisodeLike.fromEntity(e)),
-      ].where((s) => s.isNotEmpty).join(' • ');
+    e.obj('show')?['name'] as String? ?? '',
+    monthName((e['month'] as num?)?.toInt()),
+    if (e['week'] != null) 'Semana ${e['week']}',
+    if (e['night'] != null) 'Noite ${e['night']}',
+    gameDayName(EpisodeLike.fromEntity(e)),
+  ].where((s) => s.isNotEmpty).join(' • ');
 }
 
 class _SegmentTile extends StatelessWidget {
-  const _SegmentTile({super.key, required this.index, required this.s, required this.onDone, required this.onEdit, required this.onDelete});
+  const _SegmentTile({
+    super.key,
+    required this.index,
+    required this.s,
+    required this.onDone,
+    required this.onEdit,
+    required this.onDelete,
+  });
   final int index;
   final Entity s;
   final ValueChanged<bool> onDone;
@@ -189,7 +261,8 @@ class _SegmentTile extends StatelessWidget {
   bool get _done => s['isDone'] == true;
   bool get _draw => s['isDraw'] == true;
 
-  String get _headline => _isMatch ? (s.obj('matchType')?['name'] as String? ?? 'Luta') : (s['type'] == 'PROMO' ? 'Promo' : 'Segmento');
+  String get _headline =>
+      _isMatch ? (s.obj('matchType')?['name'] as String? ?? 'Luta') : (s['type'] == 'PROMO' ? 'Promo' : 'Segmento');
 
   IconData get _icon => _isMatch ? Icons.person : (s['type'] == 'PROMO' ? Icons.campaign : Icons.more_horiz);
 
@@ -226,7 +299,11 @@ class _SegmentTile extends StatelessWidget {
     final m = s.obj('tournamentMatch');
     final t = m?.obj('tournament');
     if (m == null || t == null) return '';
-    final round = roundTitle(RoundInfo.fromTournament(t), round: (m['round'] as num).toInt(), groupName: m['groupName'] as String?);
+    final round = roundTitle(
+      RoundInfo.fromTournament(t),
+      round: (m['round'] as num).toInt(),
+      groupName: m['groupName'] as String?,
+    );
     return '${t['name']} · $round';
   }
 
@@ -238,12 +315,12 @@ class _SegmentTile extends StatelessWidget {
     final finish = s['finishType'] != null ? labelOfOption(finishType, s['finishType']) : '';
     final sides = _sides;
     Widget tag(String text, {IconData? icon, Color? color}) => Chip(
-          label: Text(text, style: const TextStyle(fontSize: 11)),
-          avatar: icon != null ? Icon(icon, size: 14) : null,
-          visualDensity: VisualDensity.compact,
-          padding: EdgeInsets.zero,
-          backgroundColor: color,
-        );
+      label: Text(text, style: const TextStyle(fontSize: 11)),
+      avatar: icon != null ? Icon(icon, size: 14) : null,
+      visualDensity: VisualDensity.compact,
+      padding: EdgeInsets.zero,
+      backgroundColor: color,
+    );
 
     return Card(
       key: key,
@@ -254,61 +331,99 @@ class _SegmentTile extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          ReorderableDragStartListener(
-            index: index,
-            child: const Padding(padding: EdgeInsets.all(8), child: Icon(Icons.drag_handle)),
-          ),
-          SizedBox(width: 24, child: Text('${index + 1}', textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleMedium)),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Opacity(
-              opacity: _done ? 0.8 : 1,
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  Icon(_icon, size: 18, color: scheme.primary),
-                  const SizedBox(width: 6),
-                  Expanded(child: Text(_headline, style: const TextStyle(fontWeight: FontWeight.w700))),
-                ]),
-                Wrap(spacing: 4, runSpacing: 0, children: [
-                  if (main) tag('MAIN EVENT', color: scheme.primaryContainer),
-                  if (title != null) tag('${title['name']}${s['titleChanged'] == true ? ' · novo campeão' : ''}', icon: Icons.emoji_events),
-                  if (_tournament.isNotEmpty) tag(_tournament, icon: Icons.account_tree),
-                  if (_stakes.isNotEmpty) tag(_stakes, icon: Icons.checklist),
-                  if (_draw) tag('Empate', icon: Icons.drag_handle),
-                  if (finish.isNotEmpty) tag(finish),
-                ]),
-                if (sides.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text.rich(TextSpan(children: [
-                      for (var i = 0; i < sides.length; i++) ...[
-                        for (var j = 0; j < sides[i].length; j++) ...[
-                          if (sides[i][j]['isWinner'] == true) const WidgetSpan(child: Icon(Icons.star, size: 12), alignment: PlaceholderAlignment.middle),
-                          TextSpan(text: sides[i][j].obj('wrestler')?['name'] as String? ?? '…', style: _nameStyle(context, sides[i][j])),
-                          if (j < sides[i].length - 1) const TextSpan(text: ' & '),
-                        ],
-                        if (i < sides.length - 1) TextSpan(text: '  vs  ', style: TextStyle(color: scheme.outline, fontSize: 12)),
-                      ],
-                    ])),
-                  ),
-                if ((s['notes'] as String?)?.isNotEmpty == true)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(s['notes'] as String, style: Theme.of(context).textTheme.bodySmall),
-                  ),
-              ]),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ReorderableDragStartListener(
+              index: index,
+              child: const Padding(padding: EdgeInsets.all(8), child: Icon(Icons.drag_handle)),
             ),
-          ),
-          Checkbox(value: _done, onChanged: (v) => onDone(v == true)),
-          PopupMenuButton<String>(
-            onSelected: (v) => v == 'edit' ? onEdit() : onDelete(),
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'edit', child: Text('Editar')),
-              PopupMenuItem(value: 'delete', child: Text('Excluir')),
-            ],
-          ),
-        ]),
+            SizedBox(
+              width: 24,
+              child: Text('${index + 1}', textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleMedium),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Opacity(
+                opacity: _done ? 0.8 : 1,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(_icon, size: 18, color: scheme.primary),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(_headline, style: const TextStyle(fontWeight: FontWeight.w700)),
+                        ),
+                      ],
+                    ),
+                    Wrap(
+                      spacing: 4,
+                      runSpacing: 0,
+                      children: [
+                        if (main) tag('MAIN EVENT', color: scheme.primaryContainer),
+                        if (title != null)
+                          tag(
+                            '${title['name']}${s['titleChanged'] == true ? ' · novo campeão' : ''}',
+                            icon: Icons.emoji_events,
+                          ),
+                        if (_tournament.isNotEmpty) tag(_tournament, icon: Icons.account_tree),
+                        if (rivalryLabel(s).isNotEmpty)
+                          tag(rivalryLabel(s), icon: Icons.bolt, color: Theme.of(context).colorScheme.errorContainer),
+                        if (_stakes.isNotEmpty) tag(_stakes, icon: Icons.checklist),
+                        if (_draw) tag('Empate', icon: Icons.drag_handle),
+                        if (finish.isNotEmpty) tag(finish),
+                      ],
+                    ),
+                    if (sides.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text.rich(
+                          TextSpan(
+                            children: [
+                              for (var i = 0; i < sides.length; i++) ...[
+                                for (var j = 0; j < sides[i].length; j++) ...[
+                                  if (sides[i][j]['isWinner'] == true)
+                                    const WidgetSpan(
+                                      child: Icon(Icons.star, size: 12),
+                                      alignment: PlaceholderAlignment.middle,
+                                    ),
+                                  TextSpan(
+                                    text: sides[i][j].obj('wrestler')?['name'] as String? ?? '…',
+                                    style: _nameStyle(context, sides[i][j]),
+                                  ),
+                                  if (j < sides[i].length - 1) const TextSpan(text: ' & '),
+                                ],
+                                if (i < sides.length - 1)
+                                  TextSpan(
+                                    text: '  vs  ',
+                                    style: TextStyle(color: scheme.outline, fontSize: 12),
+                                  ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    if ((s['notes'] as String?)?.isNotEmpty == true)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(s['notes'] as String, style: Theme.of(context).textTheme.bodySmall),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            Checkbox(value: _done, onChanged: (v) => onDone(v == true)),
+            PopupMenuButton<String>(
+              onSelected: (v) => v == 'edit' ? onEdit() : onDelete(),
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'edit', child: Text('Editar')),
+                PopupMenuItem(value: 'delete', child: Text('Excluir')),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -83,4 +83,36 @@ void main() {
     expect(championBody('change', teamId: 't'), {'mode': 'change', 'holders': [{'teamId': 't'}]});
     expect(championBody('fix')['holders'], isEmpty);
   });
+
+  group('isEntryScheduled', () {
+    final tag = <String, dynamic>{'teamId': 't1', 'team': {'kind': 'TAG_TEAM', 'members': [{'wrestlerId': 'a'}, {'wrestlerId': 'b'}]}};
+    final faction = <String, dynamic>{'teamId': 't2', 'team': {'kind': 'FACTION', 'members': [{'wrestlerId': 'a'}, {'wrestlerId': 'c'}]}};
+    test('lutador individual', () {
+      expect(isEntryScheduled({'wrestlerId': 'a'}, {'a'}), isTrue);
+      expect(isEntryScheduled({'wrestlerId': 'a'}, {'b'}), isFalse);
+    });
+    test('dupla só conta com todos os integrantes escalados', () {
+      expect(isEntryScheduled(tag, {'a', 'b'}), isTrue);
+      expect(isEntryScheduled(tag, {'a'}), isFalse);
+    });
+    test('facção basta um integrante; sem membros nunca', () {
+      expect(isEntryScheduled(faction, {'c'}), isTrue);
+      expect(isEntryScheduled(faction, {'x'}), isFalse);
+      expect(isEntryScheduled({'teamId': 't3', 'team': {'members': []}}, {'a'}), isFalse);
+    });
+  });
+
+  group('isChampionScheduled', () {
+    test('lutador, dupla (todos) e facção (um)', () {
+      expect(isChampionScheduled({'wrestlerId': 'a'}, {'a'}), isTrue);
+      expect(isChampionScheduled({'wrestlerId': 'a'}, {'b'}), isFalse);
+      final tag = {'teamId': 't', 'kind': 'TAG_TEAM', 'members': ['a', 'b']};
+      expect(isChampionScheduled(tag, {'a', 'b'}), isTrue);
+      expect(isChampionScheduled(tag, {'a'}), isFalse);
+      expect(isChampionScheduled({'teamId': 'f', 'kind': 'FACTION', 'members': ['a', 'c']}, {'c'}), isTrue);
+    });
+    test('payload antigo (sem integrantes) nunca marca a dupla', () {
+      expect(isChampionScheduled({'teamId': 't'}, {'a'}), isFalse);
+    });
+  });
 }

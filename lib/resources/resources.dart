@@ -3,6 +3,7 @@
 library;
 
 import '../core/format.dart';
+import '../core/rivalry_logic.dart';
 import '../core/models.dart';
 import 'resource_def.dart';
 
@@ -36,6 +37,9 @@ final tournamentStatus = opts({
   'ONGOING': 'Em andamento',
   'FINISHED': 'Finalizado',
 });
+/// Lado vencedor da rivalidade (A = 1, B = 2).
+const rivalryWinnerOptions = [Option(1, 'Lado A'), Option(2, 'Lado B')];
+
 const genderDivision = [
   Option('M', 'Masculino'),
   Option('W', 'Feminino'),
@@ -198,19 +202,25 @@ final Map<String, Resource> resources = {
     key: 'rivalries',
     singular: 'Rivalidade',
     plural: 'Rivalidades',
-    group: 'Roster',
+    group: 'Shows',
     label: _byName,
     filters: const ['isActive'],
     columns: [
-      const ColumnDef('name', 'Nome'),
-      ColumnDef('members', 'Envolvidos', type: ColumnType.chips, render: (e, _) => _join(e, 'members', (m) => m.obj('wrestler')?['name'] as String?)),
+      const ColumnDef('name', 'Rivalidade'),
+      ColumnDef('status', 'Situação', render: (e, _) => e['isActive'] == true ? 'Em andamento' : 'Encerrada'),
+      ColumnDef('sides', 'Lados', render: (e, _) => rivalryVs(e)),
+      ColumnDef('winner', 'Ganhador', render: (e, _) => rivalryWinner(e)),
       ColumnDef('startDate', 'Início', render: (e, _) => fmtDate(e['startDate'] as String?)),
       ColumnDef('endDate', 'Fim', render: (e, _) => fmtDate(e['endDate'] as String?)),
       const ColumnDef('isActive', 'Ativa', type: ColumnType.bool),
     ],
     fields: [
       _name(),
-      FieldDef('wrestlerIds', 'Envolvidos', FieldType.refMulti, ref: 'wrestlers', defaultValue: const <String>[], fromEntity: (e) => e.list('members').map((m) => m['wrestlerId']).toList()),
+      FieldDef('sideAWrestlerIds', 'Lado A: lutadores', FieldType.refMulti, ref: 'wrestlers', defaultValue: const <String>[], fromEntity: (e) => rivalryIds(e, 1, 'wrestlerId')),
+      FieldDef('sideATeamIds', 'Lado A: duplas e facções', FieldType.refMulti, ref: 'teams', defaultValue: const <String>[], fromEntity: (e) => rivalryIds(e, 1, 'teamId')),
+      FieldDef('sideBWrestlerIds', 'Lado B: lutadores', FieldType.refMulti, ref: 'wrestlers', defaultValue: const <String>[], fromEntity: (e) => rivalryIds(e, 2, 'wrestlerId')),
+      FieldDef('sideBTeamIds', 'Lado B: duplas e facções', FieldType.refMulti, ref: 'teams', defaultValue: const <String>[], fromEntity: (e) => rivalryIds(e, 2, 'teamId')),
+      const FieldDef('winnerSide', 'Ganhador', FieldType.select, options: rivalryWinnerOptions, hint: 'Preenchido sozinho quando a luta que encerra a rivalidade é finalizada com vencedor'),
       _dateField('startDate', 'Início'),
       _dateField('endDate', 'Fim'),
       const FieldDef('isActive', 'Ativa', FieldType.boolean, defaultValue: true),

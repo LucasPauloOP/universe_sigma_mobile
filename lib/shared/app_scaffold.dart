@@ -30,24 +30,26 @@ class AppPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => Scaffold(
-        appBar: AppBar(
-          automaticallyImplyLeading: !showBack,
-          leading: showBack ? BackButton(onPressed: () => context.canPop() ? context.pop() : context.go('/dashboard')) : null,
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, overflow: TextOverflow.ellipsis),
-              if (subtitle != null)
-                Text(subtitle!, style: Theme.of(context).textTheme.bodySmall, overflow: TextOverflow.ellipsis),
-            ],
-          ),
-          actions: actions,
-          bottom: bottom,
-        ),
-        drawer: showBack ? null : const AppDrawer(),
-        floatingActionButton: fab,
-        body: body,
-      );
+    appBar: AppBar(
+      automaticallyImplyLeading: !showBack,
+      leading: showBack
+          ? BackButton(onPressed: () => context.canPop() ? context.pop() : context.go('/dashboard'))
+          : null,
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, overflow: TextOverflow.ellipsis),
+          if (subtitle != null)
+            Text(subtitle!, style: Theme.of(context).textTheme.bodySmall, overflow: TextOverflow.ellipsis),
+        ],
+      ),
+      actions: actions,
+      bottom: bottom,
+    ),
+    drawer: showBack ? null : const AppDrawer(),
+    floatingActionButton: fab,
+    body: body,
+  );
 }
 
 class AppDrawer extends ConsumerWidget {
@@ -63,18 +65,17 @@ class AppDrawer extends ConsumerWidget {
     final user = ref.watch(authProvider).user;
     final universes = ref.watch(universesProvider).value ?? const [];
     final selected = ref.watch(selectedUniverseProvider);
-    final universeName =
-        universes.where((u) => u['id'] == selected).map((u) => u['name'] as String).firstOrNull;
+    final universeName = universes.where((u) => u['id'] == selected).map((u) => u['name'] as String).firstOrNull;
     final dark = Theme.of(context).brightness == Brightness.dark;
     final path = GoRouterState.of(context).uri.path;
 
     Widget item(IconData icon, String label, String to) => ListTile(
-          leading: Icon(icon),
-          title: Text(label),
-          selected: path == to,
-          dense: true,
-          onTap: () => _go(context, to),
-        );
+      leading: Icon(icon),
+      title: Text(label),
+      selected: path == to,
+      dense: true,
+      onTap: () => _go(context, to),
+    );
 
     return Drawer(
       child: SafeArea(
@@ -89,7 +90,7 @@ class AppDrawer extends ConsumerWidget {
             ),
             const Divider(),
             item(Icons.dashboard_outlined, 'Início', '/dashboard'),
-            item(Icons.calendar_month, 'Episódios', '/episodes'),
+            item(Icons.calendar_month, 'Episódios e cards', '/episodes'),
             item(Icons.leaderboard, 'Divisões (ranking)', '/divisions'),
             item(Icons.workspace_premium, 'Estatísticas de reinados', '/stats/reigns'),
             for (final g in groups)
@@ -99,7 +100,7 @@ class AppDrawer extends ConsumerWidget {
                 initiallyExpanded: resources.values.any((r) => r.group == g && path == '/r/${r.key}'),
                 children: [
                   for (final r in resources.values.where((r) => r.group == g))
-                    item(iconFor(r.key), r.plural, '/r/${r.key}'),
+                    item(iconFor(r.key), r.key == 'episodes' ? 'Episódios (cadastro)' : r.plural, '/r/${r.key}'),
                 ],
               ),
             const Divider(),

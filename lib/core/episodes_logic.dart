@@ -66,3 +66,22 @@ String? currentSeasonId(List<Entity> seasons, List<Entity> episodes) {
   final current = sorted.where((s) => episodes.any((e) => e['seasonId'] == s.id && e['status'] != 'DONE')).firstOrNull;
   return (current ?? sorted.last).id;
 }
+
+/// Mês do último episódio realizado (na ordem de jogo); sem nenhum realizado, o do primeiro episódio.
+int? lastDoneMonth(List<Entity> ordered) {
+  final done = ordered.where((e) => e['status'] == 'DONE').lastOrNull;
+  final ref = done ?? ordered.firstOrNull;
+  return (ref?['month'] as num?)?.toInt();
+}
+
+/// Mês aberto por padrão entre [months] (os que têm episódio): o do último realizado; se esse
+/// mês não existe na lista, o mais próximo antes dele; senão o primeiro.
+int? defaultMonth(List<int> months, int? lastDone) {
+  if (months.isEmpty) return null;
+  if (lastDone == null) return months.first;
+  final order = seasonMonths;
+  final target = order.indexOf(lastDone);
+  final before = months.where((m) => order.indexOf(m) <= target).toList()
+    ..sort((a, b) => order.indexOf(a).compareTo(order.indexOf(b)));
+  return before.lastOrNull ?? months.first;
+}

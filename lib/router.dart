@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import 'core/providers.dart';
 import 'features/auth/auth_pages.dart';
 import 'features/divisions/divisions_page.dart';
+import 'features/episodes/ai_plan_page.dart';
 import 'features/episodes/episode_card_page.dart';
 import 'features/episodes/episodes_page.dart';
 import 'features/episodes/segment_form_page.dart';
@@ -65,7 +66,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/episodes',
         builder: (_, _) => const EpisodesPage(),
         routes: [
+          GoRoute(path: 'ai-plan', builder: (_, s) => AiPlanPage(seasonId: s.uri.queryParameters['seasonId'])),
           GoRoute(path: ':id/card', builder: (_, s) => EpisodeCardPage(episodeId: s.pathParameters['id']!)),
+          GoRoute(
+            path: ':id/ai',
+            builder: (_, s) => AiPlanPage(episodeId: s.pathParameters['id']!, episodeLabel: s.uri.queryParameters['label']),
+          ),
           GoRoute(
             path: ':id/segments/new',
             builder: (_, s) => SegmentFormPage(episodeId: s.pathParameters['id']!),

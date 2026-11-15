@@ -176,4 +176,46 @@ void main() {
       );
     });
   });
+
+  group('rivalidade na luta', () {
+    test('começar e encerrar não andam juntos', () {
+      final d = singles();
+      d.setEndsRivalry(true, options: ['r1', 'r2']);
+      expect(d.endsRivalry, isTrue);
+      expect(d.rivalryId, isNull); // 2 opções: o usuário escolhe
+      expect(d.missingRivalry, isTrue);
+      expect(d.canSave, isFalse);
+      d.setStartsRivalry(true);
+      expect(d.endsRivalry, isFalse);
+      expect(d.missingRivalry, isFalse);
+    });
+
+    test('com uma só rivalidade reconhecida, já vem escolhida', () {
+      final d = singles()..setEndsRivalry(true, options: ['r1']);
+      expect(d.rivalryId, 'r1');
+      expect(d.canSave, isTrue);
+      d.setEndsRivalry(false);
+      expect(d.rivalryId, isNull);
+    });
+
+    test('corpo: só lutas enviam; encerrar manda o id; começar não', () {
+      final ends = singles()..setEndsRivalry(true, options: ['r1']);
+      var b = ends.toBody('e1');
+      expect([b['startsRivalry'], b['endsRivalry'], b['rivalryId']], [false, true, 'r1']);
+      final starts = singles()..setStartsRivalry(true);
+      b = starts.toBody('e1');
+      expect([b['startsRivalry'], b['endsRivalry'], b['rivalryId']], [true, false, null]);
+      final promo = SegmentDraft(type: 'PROMO')..startsRivalry = true;
+      b = promo.toBody('e1');
+      expect([b['startsRivalry'], b['endsRivalry'], b['rivalryId']], [false, false, null]);
+    });
+
+    test('lido da API: rivalidade só vira escolha quando a luta a encerra', () {
+      final ends = SegmentDraft.fromEntity({'type': 'MATCH', 'endsRivalry': true, 'rivalryId': 'r1', 'participants': []});
+      expect(ends.rivalryId, 'r1');
+      final starts = SegmentDraft.fromEntity({'type': 'MATCH', 'startsRivalry': true, 'rivalryId': 'r9', 'participants': []});
+      expect(starts.startsRivalry, isTrue);
+      expect(starts.rivalryId, isNull);
+    });
+  });
 }
