@@ -79,9 +79,12 @@ Future<ProviderContainer> _open(WidgetTester tester, FakeServer server, String l
 }
 
 /// Rola o formulário (a tela de cima da pilha) até o fim: a lista só constrói o que aparece.
-Future<void> _scrollForm(WidgetTester tester, [double dy = -1500]) async {
-  await tester.drag(find.byType(ListView).last, Offset(0, dy));
-  await tester.pumpAndSettle();
+Future<void> _scrollForm(WidgetTester tester, [double dy = -3000]) async {
+  // lista preguiçosa: a altura só se completa conforme os itens são construídos, então rolagens grandes (até o fim/topo) repetem
+  for (var i = 0; i < (dy.abs() >= 1500 ? 2 : 1); i++) {
+    await tester.drag(find.byType(ListView).last, Offset(0, dy));
+    await tester.pumpAndSettle();
+  }
 }
 
 void main() {
@@ -205,6 +208,39 @@ void main() {
       expect(body['episodeId'], 'e1');
       expect((body['participants'] as List).first, {'wrestlerId': 'w1', 'side': 1, 'isWinner': true});
       expect((body['participants'] as List).last['isWinner'], isFalse);
+    });
+
+    testWidgets('formulário de segmento: luta reconhece rivalidade e envia o encerramento', (tester) async {
+      final server = _server(extra: {
+        'GET /universes/u1/rivalries/match': (o) => (200, [
+              {'id': 'rv1', 'name': 'John Cena vs CM Punk', 'isActive': true, 'members': [], 'segments': []},
+            ]),
+        'PUT /universes/u1/segments/sg1': (o) => (200, {'id': 'sg1'}),
+      });
+      await _open(tester, server, '/episodes/e1/card');
+      await tester.tap(find.byType(Checkbox).first); // luta sem resultado: abre o formulário
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 400)); // espera a busca (debounce)
+      await tester.pumpAndSettle();
+      expect(server.calls, contains('GET /universes/u1/rivalries/match'));
+
+      await tester.drag(find.byType(ListView).last, const Offset(0, -500));
+      await tester.pumpAndSettle();
+      expect(find.text('Esta luta começa uma rivalidade'), findsOneWidget);
+      await tester.tap(find.text('Encerrar rivalidade nesta luta'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Qual rivalidade?'), findsWidgets);
+
+      // com uma só rivalidade reconhecida ela já vem escolhida: salvar envia o encerramento
+      await _scrollForm(tester, 3000);
+      await tester.tap(find.text('Realizado')); // a luta fica só planejada (sem exigir resultado)
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Salvar').first);
+      await tester.pumpAndSettle();
+      final body = server.bodies['PUT /universes/u1/segments/sg1'] as Map;
+      expect(body['endsRivalry'], isTrue);
+      expect(body['rivalryId'], 'rv1');
+      expect(body['startsRivalry'], isFalse);
     });
 
     testWidgets('card vazio oferece adicionar o primeiro segmento', (tester) async {

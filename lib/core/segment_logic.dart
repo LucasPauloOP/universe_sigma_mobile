@@ -24,6 +24,9 @@ class SegmentDraft {
     this.stakes = 'NONE',
     this.cardDivisionId,
     this.tournamentMatchId,
+    this.startsRivalry = false,
+    this.endsRivalry = false,
+    this.rivalryId,
     List<SegParticipant>? participants,
     int? sideCount,
   })  : participants = participants ?? [],
@@ -44,6 +47,9 @@ class SegmentDraft {
       stakes: s['stakes'] as String? ?? 'NONE',
       cardDivisionId: s['cardDivisionId'] as String?,
       tournamentMatchId: s.obj('tournamentMatch')?['id'] as String?,
+      startsRivalry: s['startsRivalry'] == true,
+      endsRivalry: s['endsRivalry'] == true,
+      rivalryId: s['endsRivalry'] == true ? s['rivalryId'] as String? : null,
       participants: [
         for (final p in parts)
           SegParticipant(p['wrestlerId'] as String, (p['side'] as num).toInt(), isWinner: p['isWinner'] == true),
@@ -66,6 +72,9 @@ class SegmentDraft {
   String stakes;
   String? cardDivisionId;
   String? tournamentMatchId;
+  bool startsRivalry;
+  bool endsRivalry;
+  String? rivalryId;
   final List<SegParticipant> participants;
   int sideCount;
 
@@ -90,7 +99,30 @@ class SegmentDraft {
   /// Falta escolher a divisão afetada pelo ranking.
   bool get missingDivision => hasStakes && cardDivisionId == null;
 
-  bool get canSave => problem == null && !missingDivision;
+  /// Marcou "encerrar rivalidade" mas não escolheu qual.
+  bool get missingRivalry => isMatch && endsRivalry && rivalryId == null;
+
+  bool get canSave => problem == null && !missingDivision && !missingRivalry;
+
+  /// Começar e encerrar não andam juntos.
+  void setStartsRivalry(bool on) {
+    startsRivalry = on;
+    if (on) {
+      endsRivalry = false;
+      rivalryId = null;
+    }
+  }
+
+  /// [options]: ids das rivalidades reconhecidas; com uma só, já escolhe.
+  void setEndsRivalry(bool on, {List<String> options = const []}) {
+    endsRivalry = on;
+    if (on) {
+      startsRivalry = false;
+      if (rivalryId == null && options.length == 1) rivalryId = options.first;
+    } else {
+      rivalryId = null;
+    }
+  }
 
   /// Empate não tem vencedor: limpa as estrelas ao marcar.
   void setDraw(bool draw) {
@@ -145,6 +177,9 @@ class SegmentDraft {
         'stakes': isMatch && cardDivisionId != null ? stakes : 'NONE',
         'cardDivisionId': isMatch && stakes != 'NONE' ? cardDivisionId : null,
         'tournamentMatchId': isMatch ? tournamentMatchId : null,
+        'startsRivalry': isMatch && startsRivalry,
+        'endsRivalry': isMatch && endsRivalry && !startsRivalry,
+        'rivalryId': isMatch && endsRivalry && !startsRivalry ? rivalryId : null,
         'isDone': isDone,
         'isDraw': isMatch && isDraw,
         'notes': notes.trim().isEmpty ? null : notes.trim(),

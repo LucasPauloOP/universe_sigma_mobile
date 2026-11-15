@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../core/api/api_exception.dart';
 import '../../core/format.dart';
 import '../../core/models.dart';
+import '../../core/rivalry_logic.dart';
 import '../../core/providers.dart';
 import '../../core/segment_result.dart';
 import '../../core/theme.dart';
@@ -288,6 +289,7 @@ class _SegmentTile extends StatelessWidget {
                   if (main) tag('MAIN EVENT', color: scheme.primaryContainer),
                   if (title != null) tag('${title['name']}${s['titleChanged'] == true ? ' · novo campeão' : ''}', icon: Icons.emoji_events),
                   if (_tournament.isNotEmpty) tag(_tournament, icon: Icons.account_tree),
+                  if (rivalryLabel(s).isNotEmpty) tag(rivalryLabel(s), icon: Icons.bolt, color: Theme.of(context).colorScheme.errorContainer),
                   if (_stakes.isNotEmpty) tag(_stakes, icon: Icons.checklist),
                   if (_draw) tag('Empate', icon: Icons.drag_handle),
                   if (finish.isNotEmpty) tag(finish),
