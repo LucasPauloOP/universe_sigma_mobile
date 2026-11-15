@@ -29,6 +29,7 @@ class _EpisodesPageState extends ConsumerState<EpisodesPage> {
   String? _showId;
   bool _weekly = true;
   _View _view = _View.cards;
+
   /// null = automático (mês do último realizado); 0 = todos os meses.
   int? _monthSel;
   bool _showEarlier = false;
@@ -90,42 +91,47 @@ class _EpisodesPageState extends ConsumerState<EpisodesPage> {
       context: context,
       showDragHandle: true,
       builder: (ctx) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          ListTile(
-            leading: const Icon(Icons.list),
-            title: const Text('Abrir card'),
-            onTap: () {
-              Navigator.pop(ctx);
-              context.push('/episodes/${e.id}/card');
-            },
-          ),
-          ListTile(
-            leading: Icon(done ? Icons.schedule : Icons.check_circle_outline),
-            title: Text(done
-                ? (segments > 0 ? 'Marcar como planejado' : 'Marcar como sem planejamento')
-                : 'Marcar como realizado'),
-            onTap: () {
-              Navigator.pop(ctx);
-              _toggleStatus(e);
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.edit),
-            title: const Text('Editar'),
-            onTap: () {
-              Navigator.pop(ctx);
-              _edit(e);
-            },
-          ),
-          ListTile(
-            leading: Icon(Icons.delete_outline, color: Theme.of(ctx).colorScheme.error),
-            title: Text('Excluir', style: TextStyle(color: Theme.of(ctx).colorScheme.error)),
-            onTap: () {
-              Navigator.pop(ctx);
-              _remove(e);
-            },
-          ),
-        ]),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.list),
+              title: const Text('Abrir card'),
+              onTap: () {
+                Navigator.pop(ctx);
+                context.push('/episodes/${e.id}/card');
+              },
+            ),
+            ListTile(
+              leading: Icon(done ? Icons.schedule : Icons.check_circle_outline),
+              title: Text(
+                done
+                    ? (segments > 0 ? 'Marcar como planejado' : 'Marcar como sem planejamento')
+                    : 'Marcar como realizado',
+              ),
+              onTap: () {
+                Navigator.pop(ctx);
+                _toggleStatus(e);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.edit),
+              title: const Text('Editar'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _edit(e);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.delete_outline, color: Theme.of(ctx).colorScheme.error),
+              title: Text('Excluir', style: TextStyle(color: Theme.of(ctx).colorScheme.error)),
+              onTap: () {
+                Navigator.pop(ctx);
+                _remove(e);
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -149,7 +155,10 @@ class _EpisodesPageState extends ConsumerState<EpisodesPage> {
           final seasons = [...(seasonsAsync.value ?? const <Entity>[])]
             ..sort((a, b) => (a['number'] as num).compareTo(b['number'] as num));
           if (seasonsAsync.hasValue && seasons.isEmpty) {
-            return const EmptyState('Nenhuma temporada cadastrada.\nCrie uma em Temporadas e depois gere os episódios.', icon: Icons.event);
+            return const EmptyState(
+              'Nenhuma temporada cadastrada.\nCrie uma em Temporadas e depois gere os episódios.',
+              icon: Icons.event,
+            );
           }
           final seasonId = seasons.any((s) => s.id == _seasonId) ? _seasonId : currentSeasonId(seasons, all);
           final season = seasons.where((s) => s.id == seasonId).firstOrNull;
@@ -171,71 +180,75 @@ class _EpisodesPageState extends ConsumerState<EpisodesPage> {
           final autoMonth = defaultMonth(months, lastDoneMonth(ofSeason));
           final month = _monthSel == 0 ? null : (months.contains(_monthSel) ? _monthSel : autoMonth);
 
-          return Column(children: [
-            _Toolbar(
-              seasons: seasons,
-              seasonId: seasonId,
-              onSeason: (id) => setState(() {
-                _seasonId = id;
-                _showId = null;
-                _monthSel = null;
-              }),
-              view: _view,
-              onView: (v) => setState(() => _view = v),
-              weekly: _weekly,
-              weeklyCount: playable.where(isWeekly).length,
-              pleCount: playable.where((e) => !isWeekly(e)).length,
-              onWeekly: (w) => setState(() {
-                _weekly = w;
-                _showId = null;
-              }),
-              showChoices: showChoices,
-              showId: _showId,
-              onShow: (id) => setState(() => _showId = id),
-              months: months,
-              month: month,
-              onMonthSel: (m) => setState(() => _monthSel = m ?? 0),
-            ),
-            if (startMonth != 5 || earlier > 0)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
-                child: Card(
-                  child: ListTile(
-                    dense: true,
-                    leading: const Icon(Icons.flag),
-                    title: Text('O universe começa em ${monthName(startMonth)} nesta temporada.'
-                        '${earlier > 0 ? ' $earlier episódio(s) de meses anteriores ficam ${_showEarlier ? 'visíveis' : 'ocultos'}.' : ''}'),
-                    trailing: earlier > 0
-                        ? TextButton(
-                            onPressed: () => setState(() => _showEarlier = !_showEarlier),
-                            child: Text(_showEarlier ? 'Ocultar' : 'Mostrar'),
-                          )
-                        : null,
+          return Column(
+            children: [
+              _Toolbar(
+                seasons: seasons,
+                seasonId: seasonId,
+                onSeason: (id) => setState(() {
+                  _seasonId = id;
+                  _showId = null;
+                  _monthSel = null;
+                }),
+                view: _view,
+                onView: (v) => setState(() => _view = v),
+                weekly: _weekly,
+                weeklyCount: playable.where(isWeekly).length,
+                pleCount: playable.where((e) => !isWeekly(e)).length,
+                onWeekly: (w) => setState(() {
+                  _weekly = w;
+                  _showId = null;
+                }),
+                showChoices: showChoices,
+                showId: _showId,
+                onShow: (id) => setState(() => _showId = id),
+                months: months,
+                month: month,
+                onMonthSel: (m) => setState(() => _monthSel = m ?? 0),
+              ),
+              if (startMonth != 5 || earlier > 0)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+                  child: Card(
+                    child: ListTile(
+                      dense: true,
+                      leading: const Icon(Icons.flag),
+                      title: Text(
+                        'O universe começa em ${monthName(startMonth)} nesta temporada.'
+                        '${earlier > 0 ? ' $earlier episódio(s) de meses anteriores ficam ${_showEarlier ? 'visíveis' : 'ocultos'}.' : ''}',
+                      ),
+                      trailing: earlier > 0
+                          ? TextButton(
+                              onPressed: () => setState(() => _showEarlier = !_showEarlier),
+                              child: Text(_showEarlier ? 'Ocultar' : 'Mostrar'),
+                            )
+                          : null,
+                    ),
                   ),
                 ),
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _refresh,
+                  child: _view == _View.cards
+                      ? _CardsView(
+                          groups: month == null ? groups : groups.where((g) => g.month == month).toList(),
+                          nextId: next,
+                          startMonth: startMonth,
+                          onOpen: (e) => context.push('/episodes/${e.id}/card'),
+                          onMenu: _menu,
+                        )
+                      : _CalendarView(
+                          episodes: base,
+                          month: month,
+                          onMonth: (m) => setState(() => _monthSel = m),
+                          nextId: next,
+                          onOpen: (e) => context.push('/episodes/${e.id}/card'),
+                          onMenu: _menu,
+                        ),
+                ),
               ),
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: _refresh,
-                child: _view == _View.cards
-                    ? _CardsView(
-                        groups: month == null ? groups : groups.where((g) => g.month == month).toList(),
-                        nextId: next,
-                        startMonth: startMonth,
-                        onOpen: (e) => context.push('/episodes/${e.id}/card'),
-                        onMenu: _menu,
-                      )
-                    : _CalendarView(
-                        episodes: base,
-                        month: month,
-                        onMonth: (m) => setState(() => _monthSel = m),
-                        nextId: next,
-                        onOpen: (e) => context.push('/episodes/${e.id}/card'),
-                        onMenu: _menu,
-                      ),
-              ),
-            ),
-          ]);
+            ],
+          );
         },
       ),
     );
@@ -279,9 +292,12 @@ class _Toolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Row(children: [
+    padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
             Expanded(
               child: PickerField(
                 label: 'Temporada',
@@ -301,45 +317,59 @@ class _Toolbar extends StatelessWidget {
               selected: {view},
               onSelectionChanged: (s) => onView(s.first),
             ),
-          ]),
-          const SizedBox(height: 8),
-          SegmentedButton<bool>(
-            segments: [
-              ButtonSegment(value: true, label: Text('Semanais ($weeklyCount)')),
-              ButtonSegment(value: false, label: Text('PLEs e especiais ($pleCount)')),
-            ],
-            selected: {weekly},
-            onSelectionChanged: (s) => onWeekly(s.first),
-          ),
-          if (showChoices.length > 1)
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Row(children: [
+          ],
+        ),
+        const SizedBox(height: 8),
+        SegmentedButton<bool>(
+          segments: [
+            ButtonSegment(value: true, label: Text('Semanais ($weeklyCount)')),
+            ButtonSegment(value: false, label: Text('PLEs e especiais ($pleCount)')),
+          ],
+          selected: {weekly},
+          onSelectionChanged: (s) => onWeekly(s.first),
+        ),
+        if (showChoices.length > 1)
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              children: [
                 FilterChip(label: const Text('Todos'), selected: showId == null, onSelected: (_) => onShow(null)),
                 for (final e in showChoices.entries) ...[
                   const SizedBox(width: 8),
-                  FilterChip(label: Text(e.value), selected: showId == e.key, onSelected: (_) => onShow(showId == e.key ? null : e.key)),
+                  FilterChip(
+                    label: Text(e.value),
+                    selected: showId == e.key,
+                    onSelected: (_) => onShow(showId == e.key ? null : e.key),
+                  ),
                 ],
-              ]),
+              ],
             ),
-          if (months.isNotEmpty)
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Row(children: [
+          ),
+        if (months.isNotEmpty)
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Row(
+              children: [
                 if (view == _View.cards) ...[
-                  ChoiceChip(label: const Text('Todos os meses'), selected: month == null, onSelected: (_) => onMonthSel(null)),
+                  ChoiceChip(
+                    label: const Text('Todos os meses'),
+                    selected: month == null,
+                    onSelected: (_) => onMonthSel(null),
+                  ),
                   const SizedBox(width: 8),
                 ],
                 for (final m in months) ...[
                   ChoiceChip(label: Text(monthName(m)), selected: month == m, onSelected: (_) => onMonthSel(m)),
                   const SizedBox(width: 8),
                 ],
-              ]),
+              ],
             ),
-        ]),
-      );
+          ),
+      ],
+    ),
+  );
 }
 
 class _CardsView extends StatelessWidget {
@@ -360,7 +390,14 @@ class _CardsView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (groups.isEmpty) {
-      return ListView(children: const [SizedBox(height: 320, child: EmptyState('Nenhum episódio aqui. Use “Gerar episódios”.', icon: Icons.calendar_month))]);
+      return ListView(
+        children: const [
+          SizedBox(
+            height: 320,
+            child: EmptyState('Nenhum episódio aqui. Use “Gerar episódios”.', icon: Icons.calendar_month),
+          ),
+        ],
+      );
     }
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
@@ -368,10 +405,12 @@ class _CardsView extends StatelessWidget {
         for (final g in groups) ...[
           Padding(
             padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
-            child: Row(children: [
-              Expanded(child: Text(g.name, style: Theme.of(context).textTheme.titleLarge)),
-              Text('${g.done}/${g.episodes.length} realizados', style: Theme.of(context).textTheme.bodySmall),
-            ]),
+            child: Row(
+              children: [
+                Expanded(child: Text(g.name, style: Theme.of(context).textTheme.titleLarge)),
+                Text('${g.done}/${g.episodes.length} realizados', style: Theme.of(context).textTheme.bodySmall),
+              ],
+            ),
           ),
           for (final e in g.episodes)
             Padding(
@@ -391,7 +430,13 @@ class _CardsView extends StatelessWidget {
 }
 
 class _EpisodeCard extends StatelessWidget {
-  const _EpisodeCard({required this.e, required this.isNext, required this.before, required this.onTap, required this.onMenu});
+  const _EpisodeCard({
+    required this.e,
+    required this.isNext,
+    required this.before,
+    required this.onTap,
+    required this.onMenu,
+  });
   final Entity e;
   final bool isNext;
   final bool before;
@@ -421,58 +466,97 @@ class _EpisodeCard extends StatelessWidget {
           onTap: onTap,
           onLongPress: onMenu,
           child: IntrinsicHeight(
-            child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              // faixa lateral com o ícone do status
-              Container(
-                width: 36,
-                color: color,
-                child: Icon(statusIcon(status), size: 20, color: onColor),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
-                  child: Row(children: [
-                    NetImage(e['imageUrl'] as String? ?? e.obj('show')?['imageUrl'] as String?, size: 44, fallback: Icons.tv),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(show, style: const TextStyle(fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis),
-                        Text('${episodeWhen(e)} · ${gameDayName(EpisodeLike.fromEntity(e))}', style: Theme.of(context).textTheme.bodySmall),
-                        if (title != null && title.isNotEmpty && title != show) Text(title, overflow: TextOverflow.ellipsis),
-                        const SizedBox(height: 6),
-                        Wrap(spacing: 6, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(12)),
-                            child: Row(mainAxisSize: MainAxisSize.min, children: [
-                              Icon(statusIcon(status), size: 14, color: onColor),
-                              const SizedBox(width: 4),
-                              Text(labelOfOption(episodeStatus, status),
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: onColor)),
-                            ]),
-                          ),
-                          if (isNext)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(border: Border.all(color: scheme.primary), borderRadius: BorderRadius.circular(12)),
-                              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                Icon(Icons.play_arrow, size: 14, color: scheme.primary),
-                                Text('Próximo', style: TextStyle(fontSize: 12, color: scheme.primary)),
-                              ]),
-                            ),
-                          Row(mainAxisSize: MainAxisSize.min, children: [
-                            const Icon(Icons.list, size: 16),
-                            const SizedBox(width: 2),
-                            Text('$segments'),
-                          ]),
-                        ]),
-                      ]),
-                    ),
-                    IconButton(icon: const Icon(Icons.more_vert), onPressed: onMenu, tooltip: 'Ações'),
-                  ]),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // faixa lateral com o ícone do status
+                Container(
+                  width: 36,
+                  color: color,
+                  child: Icon(statusIcon(status), size: 20, color: onColor),
                 ),
-              ),
-            ]),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
+                    child: Row(
+                      children: [
+                        NetImage(
+                          e['imageUrl'] as String? ?? e.obj('show')?['imageUrl'] as String?,
+                          size: 44,
+                          fallback: Icons.tv,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                show,
+                                style: const TextStyle(fontWeight: FontWeight.w600),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                '${episodeWhen(e)} · ${gameDayName(EpisodeLike.fromEntity(e))}',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                              if (title != null && title.isNotEmpty && title != show)
+                                Text(title, overflow: TextOverflow.ellipsis),
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 4,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(12)),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(statusIcon(status), size: 14, color: onColor),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          labelOfOption(episodeStatus, status),
+                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: onColor),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (isNext)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        border: Border.all(color: scheme.primary),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.play_arrow, size: 14, color: scheme.primary),
+                                          Text('Próximo', style: TextStyle(fontSize: 12, color: scheme.primary)),
+                                        ],
+                                      ),
+                                    ),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.list, size: 16),
+                                      const SizedBox(width: 2),
+                                      Text('$segments'),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(icon: const Icon(Icons.more_vert), onPressed: onMenu, tooltip: 'Ações'),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -501,52 +585,90 @@ class _CalendarView extends StatelessWidget {
   Widget build(BuildContext context) {
     final months = calendarMonths(episodes);
     if (months.isEmpty) {
-      return ListView(children: const [SizedBox(height: 320, child: EmptyState('Sem episódios.', icon: Icons.calendar_month))]);
+      return ListView(
+        children: const [SizedBox(height: 320, child: EmptyState('Sem episódios.', icon: Icons.calendar_month))],
+      );
     }
     final current = months.contains(month) ? month! : months.first;
     final i = months.indexOf(current);
     final rows = calendarRows(episodes, current);
     const dayWidth = 118.0;
-    return ListView(padding: const EdgeInsets.all(12), children: [
-      Row(children: [
-        IconButton(onPressed: i > 0 ? () => onMonth(months[i - 1]) : null, icon: const Icon(Icons.chevron_left)),
-        Expanded(child: Text(monthName(current), textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleLarge)),
-        IconButton(onPressed: i < months.length - 1 ? () => onMonth(months[i + 1]) : null, icon: const Icon(Icons.chevron_right)),
-      ]),
-      const SizedBox(height: 8),
-      SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Column(children: [
-          Row(children: [
-            const SizedBox(width: 56),
-            for (final d in gameWeekdays)
-              SizedBox(width: dayWidth, child: Center(child: Text(d.substring(0, 3), style: Theme.of(context).textTheme.labelMedium))),
-          ]),
-          for (var w = 0; w < 4; w++)
-            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              SizedBox(width: 56, height: 84, child: Center(child: Text('Sem. ${w + 1}', style: Theme.of(context).textTheme.labelSmall))),
-              for (var d = 0; d < 7; d++)
-                Container(
-                  width: dayWidth,
-                  constraints: const BoxConstraints(minHeight: 84),
-                  margin: const EdgeInsets.all(1),
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerLow,
-                    border: Border.all(color: Theme.of(context).colorScheme.outlineVariant, width: 0.5),
-                  ),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                    for (final e in rows[w][d])
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: _CalChip(e: e, isNext: e.id == nextId, onTap: () => onOpen(e), onLongPress: () => onMenu(e)),
+    return ListView(
+      padding: const EdgeInsets.all(12),
+      children: [
+        Row(
+          children: [
+            IconButton(onPressed: i > 0 ? () => onMonth(months[i - 1]) : null, icon: const Icon(Icons.chevron_left)),
+            Expanded(
+              child: Text(
+                monthName(current),
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ),
+            IconButton(
+              onPressed: i < months.length - 1 ? () => onMonth(months[i + 1]) : null,
+              icon: const Icon(Icons.chevron_right),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  const SizedBox(width: 56),
+                  for (final d in gameWeekdays)
+                    SizedBox(
+                      width: dayWidth,
+                      child: Center(child: Text(d.substring(0, 3), style: Theme.of(context).textTheme.labelMedium)),
+                    ),
+                ],
+              ),
+              for (var w = 0; w < 4; w++)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 56,
+                      height: 84,
+                      child: Center(child: Text('Sem. ${w + 1}', style: Theme.of(context).textTheme.labelSmall)),
+                    ),
+                    for (var d = 0; d < 7; d++)
+                      Container(
+                        width: dayWidth,
+                        constraints: const BoxConstraints(minHeight: 84),
+                        margin: const EdgeInsets.all(1),
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surfaceContainerLow,
+                          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant, width: 0.5),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            for (final e in rows[w][d])
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                child: _CalChip(
+                                  e: e,
+                                  isNext: e.id == nextId,
+                                  onTap: () => onOpen(e),
+                                  onLongPress: () => onMenu(e),
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
-                  ]),
+                  ],
                 ),
-            ]),
-        ]),
-      ),
-    ]);
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -570,13 +692,21 @@ class _CalChip extends StatelessWidget {
           color: Theme.of(context).colorScheme.surfaceContainerHighest,
           border: Border(left: BorderSide(color: color, width: 3)),
           borderRadius: BorderRadius.circular(4),
-          boxShadow: isNext ? [BoxShadow(color: Theme.of(context).colorScheme.primary, blurRadius: 0, spreadRadius: 1.5)] : null,
+          boxShadow: isNext
+              ? [BoxShadow(color: Theme.of(context).colorScheme.primary, blurRadius: 0, spreadRadius: 1.5)]
+              : null,
         ),
-        child: Row(children: [
-          if (done) const Padding(padding: EdgeInsets.only(right: 3), child: Icon(Icons.check, size: 11))
-          else if (isNext) const Padding(padding: EdgeInsets.only(right: 3), child: Icon(Icons.play_arrow, size: 11)),
-          Expanded(child: Text(calendarChip(e), style: const TextStyle(fontSize: 11), overflow: TextOverflow.ellipsis)),
-        ]),
+        child: Row(
+          children: [
+            if (done)
+              const Padding(padding: EdgeInsets.only(right: 3), child: Icon(Icons.check, size: 11))
+            else if (isNext)
+              const Padding(padding: EdgeInsets.only(right: 3), child: Icon(Icons.play_arrow, size: 11)),
+            Expanded(
+              child: Text(calendarChip(e), style: const TextStyle(fontSize: 11), overflow: TextOverflow.ellipsis),
+            ),
+          ],
+        ),
       ),
     );
   }
