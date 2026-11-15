@@ -84,3 +84,14 @@ bool isEntryScheduled(Entity entry, Set<String> scheduledWrestlerIds) {
       ? members.any(scheduledWrestlerIds.contains)
       : members.every(scheduledWrestlerIds.contains);
 }
+
+/// Campeão escalado: lutador, ou dupla com todos os integrantes (facção: um basta).
+bool isChampionScheduled(Map<String, dynamic> champion, Set<String> scheduledWrestlerIds) {
+  final wid = champion['wrestlerId'] as String?;
+  if (wid != null) return scheduledWrestlerIds.contains(wid);
+  final members = [for (final m in (champion['members'] as List? ?? const [])) m as String];
+  if (members.isEmpty) return false;
+  return champion['kind'] == 'FACTION'
+      ? members.any(scheduledWrestlerIds.contains)
+      : members.every(scheduledWrestlerIds.contains);
+}
