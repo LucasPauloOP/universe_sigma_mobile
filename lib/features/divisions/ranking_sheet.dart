@@ -63,14 +63,37 @@ class _DivisionRankingSheetState extends ConsumerState<DivisionRankingSheet> {
                   padding: const EdgeInsets.all(12),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(d['name'] as String? ?? '', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-                    if (d.obj('title') != null)
+                    if (d.obj('title') != null) ...[
                       Padding(
                         padding: const EdgeInsets.only(top: 2, bottom: 6),
-                        child: Text(
-                          '${d.obj('title')!['name']}: ${d.list('champions').isEmpty ? 'Vago' : championLabel(d)}',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
+                        child: Text(d.obj('title')!['name'] as String? ?? '', style: Theme.of(context).textTheme.bodySmall),
                       ),
+                      if (d.list('champions').isEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                          decoration: BoxDecoration(color: scheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(8)),
+                          child: const Row(children: [Icon(Icons.workspace_premium, size: 18), SizedBox(width: 8), Text('Título vago')]),
+                        ),
+                      for (final c in d.list('champions'))
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: isChampionScheduled(c, widget.scheduledIds) ? scheme.primary : scheme.tertiaryContainer,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Builder(builder: (_) {
+                            final fg = isChampionScheduled(c, widget.scheduledIds) ? scheme.onPrimary : scheme.onTertiaryContainer;
+                            return Row(children: [
+                              Icon(Icons.workspace_premium, size: 18, color: fg),
+                              const SizedBox(width: 8),
+                              Expanded(child: Text(c['name'] as String? ?? '', style: TextStyle(fontWeight: FontWeight.w700, color: fg))),
+                              Text('Campeão', style: TextStyle(fontSize: 12, color: fg)),
+                            ]);
+                          }),
+                        ),
+                      const SizedBox(height: 6),
+                    ],
                     for (final (i, e) in d.list('entries').indexed)
                       Container(
                         margin: const EdgeInsets.only(top: 3),

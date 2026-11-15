@@ -275,7 +275,8 @@ void main() {
       await tester.tap(find.byIcon(Icons.leaderboard));
       await tester.pumpAndSettle();
       expect(find.text('Ranking das divisões'), findsOneWidget);
-      expect(find.text('World Heavyweight: Vago'), findsOneWidget);
+      expect(find.text('World Heavyweight'), findsWidgets);
+      expect(find.text('Título vago'), findsOneWidget);
     });
 
     testWidgets('formulário de segmento: botão abre o ranking das divisões da marca do show', (tester) async {
@@ -301,7 +302,9 @@ void main() {
 
       expect(find.text('Ranking das divisões'), findsOneWidget);
       expect(find.text('Main Card Masculino'), findsOneWidget);
-      expect(find.text('World Heavyweight: Drew McIntyre'), findsOneWidget);
+      expect(find.text('World Heavyweight'), findsWidgets);
+      expect(find.text('Drew McIntyre'), findsWidgets); // campeão em destaque
+      expect(find.text('Campeão'), findsOneWidget);
       expect(find.text('Kevin Owens'), findsOneWidget);
       expect(server.calls, contains('GET /universes/u1/card-divisions/board'));
     });

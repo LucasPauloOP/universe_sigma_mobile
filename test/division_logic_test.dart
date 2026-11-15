@@ -101,4 +101,18 @@ void main() {
       expect(isEntryScheduled({'teamId': 't3', 'team': {'members': []}}, {'a'}), isFalse);
     });
   });
+
+  group('isChampionScheduled', () {
+    test('lutador, dupla (todos) e facção (um)', () {
+      expect(isChampionScheduled({'wrestlerId': 'a'}, {'a'}), isTrue);
+      expect(isChampionScheduled({'wrestlerId': 'a'}, {'b'}), isFalse);
+      final tag = {'teamId': 't', 'kind': 'TAG_TEAM', 'members': ['a', 'b']};
+      expect(isChampionScheduled(tag, {'a', 'b'}), isTrue);
+      expect(isChampionScheduled(tag, {'a'}), isFalse);
+      expect(isChampionScheduled({'teamId': 'f', 'kind': 'FACTION', 'members': ['a', 'c']}, {'c'}), isTrue);
+    });
+    test('payload antigo (sem integrantes) nunca marca a dupla', () {
+      expect(isChampionScheduled({'teamId': 't'}, {'a'}), isFalse);
+    });
+  });
 }
