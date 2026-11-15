@@ -85,8 +85,16 @@ class ApiClient {
   Future<dynamic> get(String path, {Map<String, dynamic>? query}) =>
       _run(() => dio.get(_scoped(path), queryParameters: query), (d) => d);
 
-  Future<dynamic> post(String path, {Object? body, Map<String, dynamic>? query}) =>
-      _run(() => dio.post(_scoped(path), data: body, queryParameters: query), (d) => d);
+  /// [receiveTimeout] sobrescreve o padrão (60 s) em chamadas longas, como a geração com IA.
+  Future<dynamic> post(String path, {Object? body, Map<String, dynamic>? query, Duration? receiveTimeout}) => _run(
+    () => dio.post(
+      _scoped(path),
+      data: body,
+      queryParameters: query,
+      options: receiveTimeout == null ? null : Options(receiveTimeout: receiveTimeout),
+    ),
+    (d) => d,
+  );
 
   Future<dynamic> put(String path, {Object? body}) =>
       _run(() => dio.put(_scoped(path), data: body), (d) => d);

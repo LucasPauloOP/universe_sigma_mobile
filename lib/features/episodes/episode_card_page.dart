@@ -84,6 +84,15 @@ class _EpisodeCardPageState extends ConsumerState<EpisodeCardPage> {
     if (saved == true) await _reload();
   }
 
+  /// Sugestão do card com IA: abre a prévia; ao salvar, recarrega o card.
+  Future<void> _suggest(Entity e) async {
+    final label = (e['title'] as String?)?.isNotEmpty == true ? e['title'] as String : e.obj('show')?['name'] as String? ?? '';
+    final saved = await context.push<int>(
+      Uri(path: '/episodes/${widget.episodeId}/ai', queryParameters: {'label': label}).toString(),
+    );
+    if (saved != null && saved > 0) await _reload();
+  }
+
   Future<void> _remove(Entity s) async {
     final ok = await confirm(
       context,
@@ -134,6 +143,12 @@ class _EpisodeCardPageState extends ConsumerState<EpisodeCardPage> {
       subtitle: card.value == null ? null : _subtitle(card.value!),
       showBack: true,
       actions: [
+        if (card.value != null)
+          IconButton(
+            tooltip: 'Gerar com IA',
+            icon: const Icon(Icons.auto_awesome),
+            onPressed: () => _suggest(card.value!),
+          ),
         if (card.value != null)
           IconButton(
             tooltip: 'Ranking das divisões',

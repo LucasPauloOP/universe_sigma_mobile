@@ -46,6 +46,18 @@ class _EpisodesPageState extends ConsumerState<EpisodesPage> {
     showInfo(context, n > 0 ? '$n episódio(s) criado(s)' : 'Nenhum episódio novo: tudo já existia');
   }
 
+  /// Temporada exibida na tela (a escolhida ou a automática), usada pelo planejamento com IA.
+  String? _visibleSeasonId;
+
+  Future<void> _planWithAi() async {
+    final season = _visibleSeasonId;
+    final saved = await context.push<int>(
+      Uri(path: '/episodes/ai-plan', queryParameters: {'seasonId': ?season}).toString(),
+    );
+    if (saved == null || saved == 0 || !mounted) return;
+    showInfo(context, '$saved episódio(s) planejado(s)');
+  }
+
   Future<void> _add() async {
     final saved = await context.push<bool>('/r/episodes/new');
     if (saved == true && mounted) showInfo(context, 'Salvo');
@@ -145,6 +157,7 @@ class _EpisodesPageState extends ConsumerState<EpisodesPage> {
       title: 'Episódios',
       subtitle: 'Temporada de maio a abril',
       actions: [
+        IconButton(tooltip: 'Planejar com IA', onPressed: _planWithAi, icon: const Icon(Icons.auto_awesome)),
         IconButton(tooltip: 'Gerar episódios', onPressed: _generate, icon: const Icon(Icons.bolt)),
         IconButton(tooltip: 'Novo episódio', onPressed: _add, icon: const Icon(Icons.add)),
       ],
@@ -161,6 +174,7 @@ class _EpisodesPageState extends ConsumerState<EpisodesPage> {
             );
           }
           final seasonId = seasons.any((s) => s.id == _seasonId) ? _seasonId : currentSeasonId(seasons, all);
+          _visibleSeasonId = seasonId;
           final season = seasons.where((s) => s.id == seasonId).firstOrNull;
           final startMonth = (season?['startMonth'] as num?)?.toInt() ?? 5;
           final ofSeason = episodesOfSeason(all, seasonId);
