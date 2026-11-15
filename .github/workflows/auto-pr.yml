@@ -1,0 +1,46 @@
+# Todo push na development abre (ou reaproveita) um PR para homologation e outro para main.
+# Se já existe PR aberto para o destino, não duplica: os novos commits entram nele sozinhos.
+# Requer: Settings > Actions > General > "Allow GitHub Actions to create and approve pull requests".
+name: Auto PR from development
+
+on:
+  push:
+    branches: [development]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  open-prs:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [homologation, main]
+    steps:
+      - name: Open PR development -> ${{ matrix.target }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+
+          existing=$(gh pr list --base "$TARGET" --head development --state open --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            echo "PR #$existing já está aberto para $TARGET; nada a fazer."
+            exit 0
+          fi
+
+          ahead=$(gh api "repos/$GH_REPO/compare/$TARGET...development" --jq '.ahead_by')
+          if [ "$ahead" = "0" ]; then
+            echo "development não tem nada novo para $TARGET."
+            exit 0
+          fi
+
+          gh pr create \
+            --base "$TARGET" \
+            --head development \
+            --title "development -> $TARGET" \
+            --body "PR aberto automaticamente a cada push na development ($ahead commit(s) à frente de $TARGET)."
